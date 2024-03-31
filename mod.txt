@@ -1,0 +1,22 @@
+{
+	"name" : "Spectate When Downed",
+	"description" : "Lets you spectate others while you are downed.",
+	"author" : "vojin154",
+	"contact" : "vojin154 (Discord)",
+	"version" : 1.0,
+	"priority" : 0,
+	"updates": [
+		{
+			"identifier": "spectate_when_downed",
+			"host": {
+				"meta": "https://raw.githubusercontent.com/vojin154/pd2_spectate_when_downed/main/meta.json"
+			}
+		}
+	],
+	"hooks" : [
+		{
+			"hook_id": "lib/units/beings/player/states/playerfatal",
+			"script_path": "mod.lua"
+		}
+	]
+}
