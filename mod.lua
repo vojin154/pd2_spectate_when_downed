@@ -1,20 +1,16 @@
 --If you think this code is disgusting. I agree.
 --I'm unfamiliar with the camera and most of this was copied from ingamewaitingforrespawn.lua (aka custody), and modified enough to work.
 
-Hooks:PostHook(PlayerFatal, "init", "init_downed_spectate", function(self, unit)
-    self.GUI_SPECTATOR_FULLSCREEN = Idstring("guis/spectator_fullscreen")
-    self.GUI_SPECTATOR = Idstring("guis/spectator_mode")
-
+Hooks:PostHook(IngameFatalState, "init", "init_downed_spectate", function(self, game_state_machine)
 	self._slotmask = managers.slot:get_mask("world_geometry") + 39
     self._fwd = Vector3(1, 0, 0)
-    self._up_offset = math.UP * 80
     self._rot = Rotation()
     self._vec_target = Vector3()
     self._vec_eye = Vector3()
     self._vec_dir = Vector3()
 end)
 
-function PlayerFatal:_setup_controller()
+function IngameFatalState:_setup_controller()
     if self._spectate_controller then
         self:_clear_controller()
     end
@@ -35,18 +31,18 @@ function PlayerFatal:_setup_controller()
         --Simple solution? Add a delayed call
         self._spectate_controller:add_trigger(prev_btn, self._prev_player_cb)
         self._spectate_controller:add_trigger(next_btn, self._next_player_cb)
-    
+
         if not _G.IS_VR then
             self._spectate_controller:add_trigger("primary_attack", self._prev_player_cb)
             self._spectate_controller:add_trigger("secondary_attack", self._next_player_cb)
         end
-    
+
         self._spectate_controller:set_enabled(true)
         managers.controller:set_ingame_mode("main")
     end)
 end
 
-function PlayerFatal:_clear_controller()
+function IngameFatalState:_clear_controller()
 	if self._spectate_controller then
 		self._spectate_controller:remove_trigger("left", self._prev_player_cb)
 		self._spectate_controller:remove_trigger("right", self._next_player_cb)
@@ -59,7 +55,7 @@ function PlayerFatal:_clear_controller()
 	end
 end
 
-function PlayerFatal:_setup_camera()
+function IngameFatalState:_setup_camera()
     self:_clear_camera()
 
 	self._camera_object = World:create_camera()
@@ -80,29 +76,31 @@ function PlayerFatal:_setup_camera()
 	end
 end
 
-function PlayerFatal:camera_exists()
+function IngameFatalState:camera_exists()
     return self._viewport and self._camera_object
 end
 
-function PlayerFatal:_clear_camera()
-	if self._viewport then
+function IngameFatalState:_clear_camera()
+	if alive(self._viewport) then
+		self._viewport:set_active(false)
 		self._viewport:destroy()
 
 		self._viewport = nil
 	end
 
-    if self._camera_object then
+    if alive(self._camera_object) then
+		self._camera_object:set_visibility(false)
 	    World:delete_camera(self._camera_object)
-    end
 
-	self._camera_object = nil
+		self._camera_object = nil
+    end
 
 	if _G.IS_VR then
 		managers.menu:set_override_ingame_camera(nil)
 	end
 end
 
-function PlayerFatal:_create_spectator_data()
+function IngameFatalState:_create_spectator_data()
 	local all_teammates = managers.groupai:state():all_char_criminals()
 	local teammate_list = {}
 
@@ -117,7 +115,7 @@ function PlayerFatal:_create_spectator_data()
 	}
 end
 
-function PlayerFatal:_refresh_teammate_list()
+function IngameFatalState:_refresh_teammate_list()
 	local all_teammates = self._spectator_data.teammate_records
 	local teammate_list = self._spectator_data.teammate_list
 	local lost_teammate_at_i = nil
@@ -166,7 +164,7 @@ function PlayerFatal:_refresh_teammate_list()
 	end
 end
 
-function PlayerFatal:watch_priority_character()
+function IngameFatalState:watch_priority_character()
 	self:_refresh_teammate_list()
 
 	local function try_watch_unit(unit_key)
@@ -197,7 +195,7 @@ function PlayerFatal:watch_priority_character()
 	self._dis_curr = nil
 end
 
-function PlayerFatal:_get_teammate_index_by_unit_key(u_key)
+function IngameFatalState:_get_teammate_index_by_unit_key(u_key)
 	for i_key, test_u_key in ipairs(self._spectator_data.teammate_list) do
 		if test_u_key == u_key then
 			return i_key
@@ -205,7 +203,7 @@ function PlayerFatal:_get_teammate_index_by_unit_key(u_key)
 	end
 end
 
-function PlayerFatal:cb_next_player()
+function IngameFatalState:cb_next_player()
 	self:_refresh_teammate_list()
 
 	local watch_u_key = self._spectator_data.watch_u_key
@@ -225,7 +223,7 @@ function PlayerFatal:cb_next_player()
     end
 end
 
-function PlayerFatal:cb_prev_player()
+function IngameFatalState:cb_prev_player()
     self:_refresh_teammate_list()
 
 	local watch_u_key = self._spectator_data.watch_u_key
@@ -245,7 +243,7 @@ function PlayerFatal:cb_prev_player()
     end
 end
 
-function PlayerFatal:_get_local_player_by_unit(unit)
+function IngameFatalState:_get_local_player_by_unit(unit)
     for i, v in ipairs(self._spectator_data.teammate_records) do
         if v.unit == unit then
             return i
@@ -253,7 +251,7 @@ function PlayerFatal:_get_local_player_by_unit(unit)
     end
 end
 
-function PlayerFatal:reviving()
+function IngameFatalState:reviving()
     local hud = managers.hud:script(PlayerBase.PLAYER_DOWNED_HUD)
     local reviving = hud.paused
 
@@ -287,7 +285,7 @@ local mrot_set_axis_angle = mrotation.set_axis_angle
 local mrot_set_look_at = mrotation.set_look_at
 local math_up = math.UP
 
-Hooks:PostHook(PlayerFatal, "update", "update_downed_spectate", function(self, t, dt)
+Hooks:PostHook(IngameFatalState, "update", "update_downed_spectate", function(self, t, dt)
     if not self:camera_exists() then
         return --Yes we could try creating the camera again, but if it fucked up while creating it. Creating it again probs wouldn't have an effect
     end
@@ -299,10 +297,6 @@ Hooks:PostHook(PlayerFatal, "update", "update_downed_spectate", function(self, t
     self:_refresh_teammate_list()
 
 	if self._spectator_data.watch_u_key then
-		if managers.hud:visible(self.GUI_SPECTATOR_FULLSCREEN) then
-			managers.hud:hide(self.GUI_SPECTATOR_FULLSCREEN)
-		end
-
 		local watch_u_record = self._spectator_data.teammate_records[self._spectator_data.watch_u_key]
 		local watch_u_head = watch_u_record.unit:movement():get_object(Idstring("Head"))
 
@@ -416,19 +410,17 @@ Hooks:PostHook(PlayerFatal, "update", "update_downed_spectate", function(self, t
 		mvec3_add(self._vec_eye, self._vec_target)
 		self._camera_object:set_position(self._vec_eye)
 		self._camera_object:set_rotation(self._rot)
-	elseif not managers.hud:visible(self.GUI_SPECTATOR_FULLSCREEN) then
-		managers.hud:show(self.GUI_SPECTATOR_FULLSCREEN)
 	end
 end)
 
-Hooks:PostHook(PlayerFatal, "enter", "enter_downed_spectate", function(self, state_data, enter_data)
+Hooks:PostHook(IngameFatalState, "at_enter", "enter_downed_spectate", function(self)
     self:_setup_controller()
     self:_create_spectator_data()
     self:watch_priority_character()
 end)
 
 
-Hooks:PostHook(PlayerFatal, "exit", "exit_downed_spectate", function(self, state_data, new_state_name)
+Hooks:PostHook(IngameFatalState, "at_exit", "exit_downed_spectate", function(self)
     self:_clear_controller()
     self:_clear_camera()
 end)
