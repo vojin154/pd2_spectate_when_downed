@@ -3,7 +3,7 @@
 	"description" : "Lets you spectate others while you are downed.",
 	"author" : "vojin154",
 	"contact" : "vojin154 (Discord)",
-	"version" : 1.2,
+	"version" : 1.2.1,
 	"priority" : 0,
 	"updates": [
 		{

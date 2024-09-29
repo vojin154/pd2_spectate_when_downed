@@ -30,6 +30,14 @@ local function setup_class(class, id)
 		DelayedCalls:Add("downed_spectate", 0.01, function() 
 			--Seems to get triggered when holding left or right click while getting put into fatal state
 			--Simple solution? Add a delayed call
+
+			--Turns out this can fuck over stuff, when you get revived as you click
+			--So just, check if the controller exists and if not, then remove whatever is left
+			if not self._spectate_controller then
+				self:_clear_controller()
+				return
+			end
+
 			self._spectate_controller:add_trigger(prev_btn, self._prev_player_cb)
 			self._spectate_controller:add_trigger(next_btn, self._next_player_cb)
 
